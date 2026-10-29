@@ -8,6 +8,15 @@
 - `[確]` = 実測で確認、無印 = 判断、`未確定` / `未着手` / `未確認` を明示する
 - 追記のみ。古くなっても消さない（「やらないと決めた」はここにしか残らない）
 
+## 2026-10-29
+
+- **09:19 公開リポジトリとしての説明とコミット・push を求められる** — 本番復旧で止め、コード変更の範囲と未コミットを十分に説明していなかった。対象は ojimpo/cosense-mcp の main。README に原因・暫定パッチ・取得リクエスト増加・更新時の注意を明記し、ハッシュ検証の対象に合わせて @cosense/std を 0.29.14 に固定した。今回の変更だけをコミットして origin/main へ push する。既存の未追跡 .claude/ は含めない。
+- **09:15 Hermes bot apto の書き込み失敗を修正** — bot の MCP 認証で create_page が `Your session is invalid.`、読み取りは成功。`@cosense/std` 0.29.14 の websocket/pull.js が userId をプロセス全体でキャッシュしており、架空の B の SID にも A の ID が返ることを再現。
+  - scripts/patch-cosense-user-cache.mjs でグローバルキャッシュを削除。依存ファイルの SHA-256 を修正前後で検証し、未知の版には適用しない。npm の postinstall/prebuild/pretest と Docker 本番の install 後に組み込んだ。再インストールで修正が消える手作業の node_modules 編集にはしない。
+  - 回帰テスト scripts/test-cosense-user-isolation.mjs: 実ライブラリに架空のプロフィール応答を渡し、順次・並行の利用者分離と失効時の拒否を検証。修正前 fail、修正後 pass。既存581件 pass / 10件 skipped、ビルド成功、lint エラー0（既存警告115）。Docker 内の回帰テストも pass。
+  - 09:14 修正版を反映後、既存の bot 認証で nbca-kit/apto テスト を作成・追記・読み直しに成功し、本文一致、作成者・最終更新者 apto を確認。SID の再入力・再招待は不要だった。kouki の拒否・Hermes 公開8ツールも維持。Hermes の接続テスト成功。Slack 経由の作成・追記は未確認。
+  - ロールバック用イメージ cosense-mcp-cosense-mcp:rollback-user-cache-20261029。元ファイルは ~/.hermes/backups/cosense-user-cache-20261029-091230/ に保存。Docker の認証 volume は維持。コミット・push はしていない。
+
 ## 2026-10-24
 
 - **11:47〜14:30 ChatGPT から `get_notation_guide` が -32603 / 公開 URL が 502** — [ojimpo.icon]「最近上流側のPRでいろいろいじっちゃってるからそこらへんがあやしい」

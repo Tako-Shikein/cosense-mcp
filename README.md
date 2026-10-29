@@ -50,6 +50,22 @@ Claude.ai / ChatGPT → HTTPS → Cloudflare Tunnel → Docker Container
 - Cosenseへの認証は`connect.sid` cookie（`COSENSE_SID`）か、Personal Access Token（`COSENSE_MCP_PAT`）。両方あればSIDが先
 - MCPクライアントからの認証は**OAuth 2.1**。認可サーバーを同じプロセスに同居させている（[認証（OAuth 2.1）](#認証oauth-21)）
 
+### 複数アカウントでの WebSocket 書き込み
+
+`@cosense/std` 0.29.14 は、最初に取得したユーザー ID を別の SID でも再利用します。
+このため、共有サーバーで2人目の書き込みが `Your session is invalid.` で失敗します。
+このフォークでは対象バージョンを 0.29.14 に固定し、
+[`scripts/patch-cosense-user-cache.mjs`](scripts/patch-cosense-user-cache.mjs) で
+ユーザー ID の共有キャッシュを除去しています。書き込み時はその SID でプロフィールを取り直すため、
+プロフィール取得のリクエストが増えます。PAT の編集 API 経路は変更していません。
+
+修正は npm のインストール・ビルド・テスト時と Docker の構築時に適用します。
+`npm install --ignore-scripts` を使う場合は、起動前に
+`node scripts/patch-cosense-user-cache.mjs` を実行してください。
+依存ファイルの SHA-256 が想定と違えば適用を中止します。
+依存を更新するときは、キャッシュの実装を確認し、修正スクリプトと回帰テストを見直してください。
+これは本フォーク内の対応であり、ライブラリ配布元の修正ではありません。
+
 ## ツール一覧
 
 | Tool | 説明 | 認証 |

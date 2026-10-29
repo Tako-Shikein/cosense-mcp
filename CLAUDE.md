@@ -295,6 +295,19 @@ Claude.ai / ChatGPT のサーバー間呼び出しが全滅する）。
 `.env` の `MCP_AUTH_TOKEN` がコメントアウトされているだけで**認証ごと消える**という失敗の仕方をした。
 2026-08-24 時点の本番はその状態で、URLを知っていれば誰でも非公開プロジェクトを読み書きできた。
 
+### 共有サーバーの WebSocket ユーザー ID 混同（2026-10-29 修正）
+
+`@cosense/std` 0.29.14 の `websocket/pull.js` は userId をモジュール全体で1つだけキャッシュする。
+別の SID で書くと、最初の利用者の ID を commit に付けて `Your session is invalid.` になる。
+読み取りは成功するので SID 失効に見えるが、取り直しても根本解決にならない。
+
+- `scripts/patch-cosense-user-cache.mjs` が userId のキャッシュを除く。毎回その SID でプロフィールを取得する
+- npm の postinstall / prebuild / pretest と、Docker 本番ステージの install 後に適用する。`--ignore-scripts` で導入するときは明示的に実行する
+- 修正前後の SHA-256 を照合し、未知のソースなら停止する。依存更新時は upstream の修正を確認し、このパッチ・ハッシュ・テストを見直す。更新後も黙って古い置換を続けない
+- `scripts/test-cosense-user-isolation.mjs` は実ライブラリを使い、架空の2アカウントの順次・並行処理と失効セッションの拒否を検証する。ネットワーク・実 SID は使わない
+- Hermes の既存認証で nbca-kit の `apto テスト` を作成・追記・読み直し、作成者・最終更新者 apto を確認。`kouki` 拒否も維持。Slack 経由でモデルを通す確認は別途残る
+- 退避は `~/.hermes/backups/cosense-user-cache-20261029-091230/`、旧 Docker イメージは `cosense-mcp-cosense-mcp:rollback-user-cache-20261029`
+
 ## 変更時の手順
 
 ```bash

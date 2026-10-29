@@ -17,7 +17,8 @@
     "manifest.json",
     ".claude-plugin",
     ".mcp.json",
-    "skills"
+    "skills",
+    "scripts/patch-cosense-user-cache.mjs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
@@ -29,10 +30,13 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "security:scan": "grep -r 's:[A-Za-z0-9_-]\\{20,\\}\\.' src/ | grep -v DUMMY | grep -v TEST || echo 'No suspicious SID patterns found'",
     "precommit": "npm run lint && npm run test && npm run security:scan",
-    "mcpb:pack": "npx @anthropic-ai/mcpb pack"
+    "mcpb:pack": "npx @anthropic-ai/mcpb pack",
+    "prebuild": "node scripts/patch-cosense-user-cache.mjs",
+    "pretest": "node scripts/patch-cosense-user-cache.mjs && node --test scripts/test-cosense-user-isolation.mjs",
+    "postinstall": "node scripts/patch-cosense-user-cache.mjs"
   },
   "dependencies": {
-    "@cosense/std": "npm:@jsr/cosense__std@^0.29.8",
+    "@cosense/std": "npm:@jsr/cosense__std@0.29.14",
     "@cosense/types": "npm:@jsr/cosense__types@^0.10.4",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "@whatwg-node/fetch": "^0.10.1",

@@ -5,12 +5,19 @@ import { diffToEditChanges, writePage, type EditChange } from '@/page-writer.js'
 jest.mock('@whatwg-node/fetch');
 jest.mock('@cosense/std/websocket', () => ({
   patch: jest.fn(),
+  connect: jest.fn(),
+  disconnect: jest.fn(),
 }));
 
 const mockedFetch = fetch as jest.MockedFunction<typeof fetch>;
 let mockedPatch: jest.MockedFunction<typeof import('@cosense/std/websocket').patch>;
+let mockedConnect: jest.MockedFunction<typeof import('@cosense/std/websocket').connect>;
+let mockedDisconnect: jest.MockedFunction<typeof import('@cosense/std/websocket').disconnect>;
+const fakeSocket = { fake: true };
 beforeAll(async () => {
   const websocketModule = await import('@cosense/std/websocket');
+  mockedConnect = websocketModule.connect as typeof mockedConnect;
+  mockedDisconnect = websocketModule.disconnect as typeof mockedDisconnect;
   mockedPatch = websocketModule.patch as jest.MockedFunction<typeof import('@cosense/std/websocket').patch>;
 });
 
@@ -144,6 +151,8 @@ describe('writePage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedConnect.mockResolvedValue({ ok: true, val: fakeSocket } as never);
+    mockedDisconnect.mockResolvedValue({ ok: true } as never);
     process.env.COSENSE_MCP_PAT = 'test-pat';
   });
 
@@ -167,8 +176,43 @@ describe('writePage', () => {
     const result = await writePage(project, title, update, 'test-sid');
 
     expect(result).toEqual({ ok: true });
-    expect(mockedPatch).toHaveBeenCalledWith(project, title, update, { sid: 'test-sid' });
+    expect(mockedPatch).toHaveBeenCalledWith(project, title, expect.any(Function), { sid: 'test-sid', socket: fakeSocket });
+    expect(mockedDisconnect).toHaveBeenCalledWith(fakeSocket);
     expect(mockedFetch).not.toHaveBeenCalled();
+  });
+
+  test('commit に応答が無ければ、時間切れでソケットを閉じてエラーを返す（再送し続けない）', async () => {
+    delete process.env.COSENSE_MCP_PAT;
+    process.env.COSENSE_REQUEST_TIMEOUT_MS = '50';
+    mockedPatch.mockReturnValue(new Promise(() => {}) as never);
+    try {
+      const result = await writePage(project, title, lines => lines, 'test-sid');
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.err).toMatch(/commit timed out after 50ms.*nothing was written/);
+      expect(mockedDisconnect).toHaveBeenCalledWith(fakeSocket);
+      // 時間切れのあとに再送が update を呼んでも、書く中身は作らない
+      const wrapped = mockedPatch.mock.calls[0]![2] as (lines: BaseLine[]) => unknown;
+      expect(wrapped(pageOf(['a']))).toBeUndefined();
+    } finally {
+      delete process.env.COSENSE_REQUEST_TIMEOUT_MS;
+    }
+  });
+
+  test('接続できなければ、時間切れでエラーを返し、あとで繋がったソケットも閉じる', async () => {
+    delete process.env.COSENSE_MCP_PAT;
+    process.env.COSENSE_REQUEST_TIMEOUT_MS = '50';
+    let connectLater!: (value: unknown) => void;
+    mockedConnect.mockReturnValue(new Promise(resolve => { connectLater = resolve; }) as never);
+    try {
+      const result = await writePage(project, title, lines => lines, 'test-sid');
+      expect(!result.ok && result.err).toMatch(/connect timed out after 50ms/);
+      expect(mockedPatch).not.toHaveBeenCalled();
+      connectLater({ ok: true, val: fakeSocket });
+      await new Promise(resolve => setImmediate(resolve));
+      expect(mockedDisconnect).toHaveBeenCalledWith(fakeSocket);
+    } finally {
+      delete process.env.COSENSE_REQUEST_TIMEOUT_MS;
+    }
   });
 
   test('SIDとPATの両方があれば websocket を使う', async () => {

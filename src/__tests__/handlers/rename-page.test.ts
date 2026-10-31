@@ -1,7 +1,7 @@
 import { handleRenamePage } from '@/routes/handlers/rename-page.js';
 
 jest.mock('@cosense/std/websocket', () => ({
-  patch: jest.fn()
+  patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true }))
 }));
 
 jest.mock('@/cosense.js', () => {

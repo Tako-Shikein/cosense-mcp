@@ -3,7 +3,7 @@ import * as cosense from '@/cosense.js';
 
 jest.mock('@/cosense.js');
 jest.mock('@cosense/std/websocket', () => ({
-  patch: jest.fn()
+  patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true }))
 }));
 
 const mockedCosense = cosense as jest.Mocked<typeof cosense>;
@@ -196,7 +196,7 @@ describe('handleDeletePage', () => {
         mockProjectName,
         'Test Page',
         expect.any(Function),
-        { sid: mockCosenseSid }
+        { sid: mockCosenseSid, socket: expect.anything() }
       );
 
       const callback = mockedPatch.mock.calls[0]?.[2] as (lines: unknown[]) => unknown[];
@@ -218,7 +218,7 @@ describe('handleDeletePage', () => {
         'custom-project',
         'Test Page',
         expect.any(Function),
-        { sid: mockCosenseSid }
+        { sid: mockCosenseSid, socket: expect.anything() }
       );
     });
 

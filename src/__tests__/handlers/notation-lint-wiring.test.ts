@@ -8,11 +8,14 @@ jest.mock('@/utils/markdown-converter.js', () => ({
 }));
 jest.mock('@cosense/std/websocket', () => ({
   patch: jest.fn(),
+  connect: jest.fn(async () => ({ ok: true, val: {} })),
+  disconnect: jest.fn(async () => ({ ok: true })),
 }));
 jest.mock('@/cosense.js', () => ({
   patch: jest.fn(),
   getPage: jest.fn(() => Promise.resolve(null)),
   createPageUrl: jest.fn(() => 'https://scrapbox.io/test/Page'),
+  requestTimeoutMs: jest.fn(() => 30_000),
 }));
 
 let mockedPatch: jest.MockedFunction<typeof import('@cosense/std/websocket').patch>;

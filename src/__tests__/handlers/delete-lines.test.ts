@@ -1,7 +1,7 @@
 import { handleDeleteLines } from '@/routes/handlers/delete-lines.js';
 
 jest.mock('@cosense/std/websocket', () => ({
-  patch: jest.fn()
+  patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true }))
 }));
 
 let mockedPatch: jest.MockedFunction<typeof import('@cosense/std/websocket').patch>;

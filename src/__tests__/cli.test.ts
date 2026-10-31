@@ -1,6 +1,6 @@
 // Mock external dependencies before handler imports
 jest.mock('@cosense/std/websocket', () => ({
-  patch: jest.fn()
+  patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true }))
 }));
 jest.mock('@/cosense.js');
 jest.mock('@/utils/markdown-converter.js', () => ({

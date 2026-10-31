@@ -6,7 +6,7 @@ jest.mock('@/utils/markdown-converter.js', () => ({
   convertMarkdownToScrapbox: jest.fn((text) => Promise.resolve(text))
 }));
 jest.mock('@cosense/std/websocket', () => ({
-  patch: jest.fn()
+  patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true }))
 }));
 
 const mockedCosense = cosense as jest.Mocked<typeof cosense>;
@@ -193,7 +193,7 @@ describe('handleRewritePage', () => {
         mockProjectName,
         'Test Page',
         expect.any(Function),
-        { sid: mockCosenseSid }
+        { sid: mockCosenseSid, socket: expect.anything() }
       );
 
       const callback = mockedPatch.mock.calls[0]?.[2] as (lines: unknown[]) => unknown[];
@@ -274,7 +274,7 @@ describe('handleRewritePage', () => {
         'custom-project',
         'Test Page',
         expect.any(Function),
-        { sid: mockCosenseSid }
+        { sid: mockCosenseSid, socket: expect.anything() }
       );
     });
 

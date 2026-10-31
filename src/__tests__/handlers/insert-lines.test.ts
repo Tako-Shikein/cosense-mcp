@@ -6,7 +6,7 @@ jest.mock('@/utils/markdown-converter.js', () => ({
 }));
 // @cosense/stdライブラリ全体をモック
 jest.mock('@cosense/std/websocket', () => ({
-  patch: jest.fn()
+  patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true }))
 }));
 
 // patchのモックを動的に取得
@@ -108,7 +108,7 @@ describe('handleInsertLines', () => {
         mockProjectName,
         'Test Page',
         expect.any(Function),
-        { sid: mockCosenseSid }
+        { sid: mockCosenseSid, socket: expect.anything() }
       );
     });
 

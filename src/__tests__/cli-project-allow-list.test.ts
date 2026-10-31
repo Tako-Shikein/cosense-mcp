@@ -1,6 +1,6 @@
 // ハンドラはモックしない。CLI がプロジェクト名をどう渡すかまで含めて確認したいため
 jest.mock('@cosense/std/websocket', () => ({
-  patch: jest.fn()
+  patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true }))
 }));
 jest.mock('@/cosense.js');
 

@@ -1,9 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { fetch } from '@whatwg-node/fetch';
-import { patch } from '@cosense/std/websocket';
+import { connect, disconnect, patch } from '@cosense/std/websocket';
 import type { BaseLine } from '@cosense/types/rest';
 import { credentialHeaders, getApiDomain, resolveCredential, type Credential } from './utils/auth.js';
 import { stringifyError } from './utils/format.js';
+import { requestTimeoutMs } from './cosense.js';
 
 /**
  * ページの今の行から、書き込み後の行を作る関数。`@cosense/std` の `patch` と同じ約束で、
@@ -40,16 +41,73 @@ export async function writePage(
     return { ok: false, err: 'Authentication required: COSENSE_MCP_PAT or COSENSE_SID is needed for page editing' };
   }
   if (credential.type === 'sid') {
-    const result = await patch(projectName, title, update, { sid: credential.value });
+    const result = await patchWithTimeout(projectName, title, update, credential.value);
     if (result.ok) return { ok: true };
+    const failure = result.err;
     // エラーの文言は websocket だけだったころと同じにする（SID で使っている人から見て何も変えない）。
     // PAT も入れている人は、期限切れの SID が優先されて失敗し続けることがあるので、そのときだけ案内を足す
     const hint = process.env.COSENSE_MCP_PAT?.trim()
       ? ' (COSENSE_SID takes precedence over COSENSE_MCP_PAT; remove COSENSE_SID to write with the token)'
       : '';
-    return { ok: false, err: `WebSocket patch failed: ${stringifyError(result.err)}${hint}` };
+    return { ok: false, err: `WebSocket patch failed: ${failure}${hint}` };
   }
   return writeViaEditApi(projectName, title, update, credential);
+}
+
+/**
+ * websocket の `patch` に全体のタイムアウトを付ける。
+ *
+ * ライブラリには上限が無い。`commit` に応答が無いと、90秒待って3秒おいて再送、を回数制限なしで続ける
+ * （2026-10-31、Cosense が websocket のプロトコルを変えたとき、書き込みが全部この形で止まった）。
+ * クライアントはその間ずっと待たされ、MCP からは「フリーズ」と区別がつかない。
+ * 自分でソケットを持っておけば、時間切れでそれを切って、待っている `commit` を拒否で終わらせられる。
+ * タイムアウトも `{ ok: false }` で返す（呼び出し側は `!ok` を例外にするので、成功には見えない）。
+ */
+async function patchWithTimeout(
+  projectName: string,
+  title: string,
+  update: PageUpdate,
+  sid: string,
+): Promise<WriteResult> {
+  const timeoutMs = requestTimeoutMs();
+  const timeoutErr = (stage: string): WriteResult => ({
+    ok: false,
+    err: `WebSocket ${stage} timed out after ${timeoutMs}ms: Cosense did not respond (nothing was written)`,
+  });
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<'timeout'>(resolve => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs);
+  });
+  // 時間切れのあとで再送が走っても、書く中身をもう作らない（`undefined` は書き込みの中止）
+  let cancelled = false;
+  try {
+    const connecting = connect(undefined, sid);
+    const connected = await Promise.race([connecting, timeout]);
+    if (connected === 'timeout') {
+      cancelled = true;
+      void connecting.then(r => { if (r.ok) void disconnect(r.val); }, () => {});
+      return timeoutErr('connect');
+    }
+    if (!connected.ok) {
+      return { ok: false, err: stringifyError(connected.err) };
+    }
+    const socket = connected.val;
+    const patching = patch(projectName, title, lines => (cancelled ? undefined : update(lines)), { sid, socket });
+    try {
+      const result = await Promise.race([patching, timeout]);
+      if (result === 'timeout') {
+        cancelled = true;
+        patching.catch(() => {});
+        return timeoutErr('commit');
+      }
+      return result.ok ? { ok: true } : { ok: false, err: stringifyError(result.err) };
+    } finally {
+      // 渡したソケットは `patch` が閉じないので、ここで閉じる。待っている commit はこれで拒否される
+      void disconnect(socket);
+    }
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // 読んでから書くまでに他の人がページを変えると 409 NotFastForward が返る。読み直してやり直す回数

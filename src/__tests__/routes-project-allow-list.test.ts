@@ -3,7 +3,7 @@ import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { setupRoutes } from '@/routes/index.js';
 
 jest.mock('@/cosense.js');
-jest.mock('@cosense/std/websocket', () => ({ patch: jest.fn() }));
+jest.mock('@cosense/std/websocket', () => ({ patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true })) }));
 
 /**
  * 許可リストは各ハンドラではなく MCP のディスパッチ境界（routes/index.ts）で一度だけ見る。

@@ -8,7 +8,7 @@ import { handleRewritePage } from '@/routes/handlers/rewrite-page.js';
 
 // PAT だけ（SID なし）で、各ハンドラが websocket ではなく編集 API まで届くことを確かめる
 jest.mock('@whatwg-node/fetch');
-jest.mock('@cosense/std/websocket', () => ({ patch: jest.fn() }));
+jest.mock('@cosense/std/websocket', () => ({ patch: jest.fn(), connect: jest.fn(async () => ({ ok: true, val: {} })), disconnect: jest.fn(async () => ({ ok: true })) }));
 jest.mock('@/utils/markdown-converter.js', () => ({
   convertMarkdownToScrapbox: jest.fn((text: string) => Promise.resolve(text)),
 }));

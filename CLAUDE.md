@@ -308,6 +308,17 @@ Claude.ai / ChatGPT のサーバー間呼び出しが全滅する）。
 - Hermes の既存認証で nbca-kit の `apto テスト` を作成・追記・読み直し、作成者・最終更新者 apto を確認。`kouki` 拒否も維持。Slack 経由でモデルを通す確認は別途残る
 - 退避は `~/.hermes/backups/cosense-user-cache-20261029-091230/`、旧 Docker イメージは `cosense-mcp-cosense-mcp:rollback-user-cache-20261029`
 
+### Cosense の websocket プロトコル変更への暫定パッチ（2026-11-01）
+
+2026-10-31 に Cosense が websocket のプロトコルを変え、`@cosense/std` 0.29.14 の SID 書き込みが全部、応答が返らず止まった。
+ブラウザは接続時に `auth: { protocolVersion: 2 }` を送り、`commit` / `room:join` を `socket.io-request` で包まず直接 emit する。
+旧形式のままでも接続は受け付けられるので、**エラーにならず待ち続ける**のが厄介（`push` はタイムアウトで回数制限なしに再送する）。
+
+- `scripts/patch-cosense-protocol.mjs` が `socket.js` と `emit.js` を直す。ユーザー ID キャッシュのパッチと同じく SHA-256 を検査し、未知の版なら停止する。postinstall / prebuild / pretest と Docker に組み込み済み。テストは `scripts/test-cosense-protocol.mjs`
+- 依存を更新するときは、新しい版が protocol 2 を話すか確認し、パッチ・ハッシュ・テストを見直す。**黙って古い置換を続けない**
+- `writePage`（`src/page-writer.ts`）は SID 経路で自前のソケットを持ち、`COSENSE_REQUEST_TIMEOUT_MS` で打ち切る。ライブラリ任せにしない
+- 再発したら、ブラウザ（Playwright に SID を渡す）の websocket フレームを読み取り専用で捕まえて、今のプロトコルと比べる。**socket.io の接続が成功することは、プロトコルが合っている証拠にならない**
+
 ## 変更時の手順
 
 ```bash

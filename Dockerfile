@@ -13,7 +13,7 @@ FROM node:22-slim
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY scripts/ scripts/
-RUN npm install --omit=dev --ignore-scripts && node scripts/patch-cosense-user-cache.mjs
+RUN npm install --omit=dev --ignore-scripts && node scripts/patch-cosense-user-cache.mjs && node scripts/patch-cosense-protocol.mjs
 COPY --from=builder /app/build/ build/
 
 ENV TRANSPORT=http

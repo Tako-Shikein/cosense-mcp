@@ -18,7 +18,8 @@
     ".claude-plugin",
     ".mcp.json",
     "skills",
-    "scripts/patch-cosense-user-cache.mjs"
+    "scripts/patch-cosense-user-cache.mjs",
+    "scripts/patch-cosense-protocol.mjs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
@@ -31,9 +32,9 @@
     "security:scan": "grep -r 's:[A-Za-z0-9_-]\\{20,\\}\\.' src/ | grep -v DUMMY | grep -v TEST || echo 'No suspicious SID patterns found'",
     "precommit": "npm run lint && npm run test && npm run security:scan",
     "mcpb:pack": "npx @anthropic-ai/mcpb pack",
-    "prebuild": "node scripts/patch-cosense-user-cache.mjs",
-    "pretest": "node scripts/patch-cosense-user-cache.mjs && node --test scripts/test-cosense-user-isolation.mjs",
-    "postinstall": "node scripts/patch-cosense-user-cache.mjs"
+    "prebuild": "node scripts/patch-cosense-user-cache.mjs && node scripts/patch-cosense-protocol.mjs",
+    "pretest": "node scripts/patch-cosense-user-cache.mjs && node scripts/patch-cosense-protocol.mjs && node --test scripts/test-cosense-user-isolation.mjs scripts/test-cosense-protocol.mjs",
+    "postinstall": "node scripts/patch-cosense-user-cache.mjs && node scripts/patch-cosense-protocol.mjs"
   },
   "dependencies": {
     "@cosense/std": "npm:@jsr/cosense__std@0.29.14",

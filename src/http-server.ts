@@ -89,8 +89,13 @@ export function createApp(createServer: ServerFactory, options: HttpServerOption
 
   // Request logging。OAuth のルーターより先に載せること — 後ろに置くと
   // /authorize や /oauth/consent がログに一切残らず、認可の失敗を追えなくなる。
-  app.use((req: Request, _res: Response, next) => {
+  app.use((req: Request, res: Response, next) => {
     console.error(`[${new Date().toISOString()}] ${req.method} ${req.path} session=${req.headers['mcp-session-id'] || 'none'}`);
+
+    res.on('finish', () => {
+      console.error(`[HTTP] ${req.method} ${req.path} status=${res.statusCode} bearer=${req.headers.authorization ? 'yes' : 'no'}`);
+    });
+
     next();
   });
 
